@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "servers": {
+    "example-stdio": {
+      "transport": "stdio",
+      "command": "python",
+      "args": ["./servers/example-server.py"],
+      "env": {},
+      "disabled": true
+    },
+    "example-sse": {
+      "transport": "sse",
+      "url": "http://localhost:3000/sse",
+      "headers": {},
+      "disabled": true
+    }
+  }
+}
