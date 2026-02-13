@@ -1,8 +1,10 @@
 import OpenAI from "openai";
 import { MCPManager } from "./mcp/manager.js";
+import { SessionManager } from "./session/index.js";
 
 let openai: OpenAI | null = null;
 let mcpManager: MCPManager | null = null;
+let sessionManager: SessionManager | null = null;
 
 function getOpenAIInstance(): OpenAI {
   if (!openai) {
@@ -23,6 +25,20 @@ function getOpenAIInstance(): OpenAI {
 
 async function main() {
   try {
+    // 初始化 Session Manager (记录对话上下文和监控大小)
+    sessionManager = new SessionManager({
+      maxMessages: 50,
+      maxTokens: 4096,
+      systemMessage: "你是一个有用的AI助手，可以回答用户的问题并帮助使用工具。"
+    });
+
+    // 订阅统计信息变化
+    sessionManager.onStatsChanged((stats) => {
+      if (stats.messageCount % 5 === 0) { // 每5条消息打印一次统计
+        console.log(`\n[Session] 当前消息数: ${stats.messageCount}, 预估Tokens: ${stats.totalTokens}`);
+      }
+    });
+
     // 初始化 MCP Manager
     mcpManager = new MCPManager();
     await mcpManager.initialize();
@@ -66,12 +82,13 @@ async function main() {
       console.log();
     }
 
+    // 添加用户消息到会话
+    sessionManager.addUserMessage("今天北京天气怎么样");
+
     // 创建聊天完成请求
     const requestParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
       model: "glm-4.7-flash",
-      messages: [
-        {role: "user", content: "今天北京天气怎么样"},
-      ],
+      messages: sessionManager.getOpenAIMessages(),
       stream: true,
     };
     
@@ -82,12 +99,14 @@ async function main() {
     const response = await getOpenAIInstance().chat.completions.create(requestParams);
 
     const toolCallsBuffer: Map<number, OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall> = new Map();
+    let fullAssistantContent = "";
 
     for await (const chunk of response) {
       const content = chunk.choices[0]?.delta?.content || "";
       
       if (content) {
         process.stdout.write(content);
+        fullAssistantContent += content;
       }
 
       // 收集工具调用
@@ -115,25 +134,31 @@ async function main() {
 
     console.log("\n");
 
+    // 将助手回复添加到会话 (包括工具调用信息)
+    const toolCallsToExecute: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] = [];
+    for (const [index, toolCall] of toolCallsBuffer.entries()) {
+      if (toolCall.function?.name) {
+        toolCallsToExecute.push({
+          id: toolCall.id || `call_${index}`,
+          type: "function",
+          function: {
+            name: toolCall.function.name,
+            arguments: toolCall.function.arguments
+          }
+        } as OpenAI.Chat.Completions.ChatCompletionMessageToolCall);
+      }
+    }
+
+    sessionManager.addAssistantMessage(fullAssistantContent, toolCallsToExecute.length > 0 ? toolCallsToExecute : undefined);
+
     // 处理工具调用
     if (toolCallsBuffer.size > 0) {
       console.log("\n[工具调用] 检测到工具调用请求:\n");
       
-      // 转换工具调用格式
-      const toolCallsToExecute: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[] = [];
       for (const [index, toolCall] of toolCallsBuffer.entries()) {
         if (toolCall.function?.name) {
           console.log(`  [${index}] ${toolCall.function.name}`);
           console.log(`      参数: ${toolCall.function.arguments}`);
-          
-          toolCallsToExecute.push({
-            id: toolCall.id || `call_${index}`,
-            type: "function",
-            function: {
-              name: toolCall.function.name,
-              arguments: toolCall.function.arguments
-            }
-          } as OpenAI.Chat.Completions.ChatCompletionMessageToolCall);
         }
       }
 
@@ -150,9 +175,18 @@ async function main() {
             console.log(`  错误: ${result.error}`);
           }
           console.log();
+          
+          // 将工具响应添加到会话
+          sessionManager.addToolMessage(
+            result.toolCallId,
+            result.error ? `Error: ${result.error}` : JSON.stringify(result.result)
+          );
         }
       }
     }
+
+    // 打印最终会话统计
+    sessionManager.printStats();
 
   } catch (error) {
     if (error instanceof Error) {
