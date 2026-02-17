@@ -1,0 +1,111 @@
+[
+  {
+    "id": "weather_helper",
+    "name": "weather_helper",
+    "description": "帮助用户查询天气信息",
+    "version": "1.0.0",
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "获取指定城市的天气",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string",
+              "description": "城市名称，例如：北京、上海"
+            },
+            "unit": {
+              "type": "string",
+              "description": "温度单位，celsius 或 fahrenheit",
+              "enum": ["celsius", "fahrenheit"],
+              "default": "celsius"
+            }
+          },
+          "required": ["city"]
+        }
+      },
+      {
+        "name": "get_forecast",
+        "description": "获取指定城市的天气预报",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string",
+              "description": "城市名称"
+            },
+            "days": {
+              "type": "number",
+              "description": "预报天数（1-7）",
+              "minimum": 1,
+              "maximum": 7,
+              "default": 3
+            }
+          },
+          "required": ["city"]
+        }
+      }
+    ],
+    "config": {
+      "enabled": true,
+      "priority": 1,
+      "metadata": {
+        "category": "utility",
+        "author": "rosiwit"
+      }
+    },
+    "createdAt": "2024-02-18T00:00:00.000Z",
+    "updatedAt": "2024-02-18T00:00:00.000Z"
+  },
+  {
+    "id": "calculator",
+    "name": "calculator",
+    "description": "执行基本的数学计算",
+    "version": "1.0.0",
+    "tools": [
+      {
+        "name": "calculate",
+        "description": "执行数学表达式计算",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "expression": {
+              "type": "string",
+              "description": "数学表达式，例如：1 + 2 * 3"
+            }
+          },
+          "required": ["expression"]
+        }
+      },
+      {
+        "name": "convert_units",
+        "description": "单位转换",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "number",
+              "description": "要转换的值"
+            },
+            "from": {
+              "type": "string",
+              "description": "原始单位"
+            },
+            "to": {
+              "type": "string",
+              "description": "目标单位"
+            }
+          },
+          "required": ["value", "from", "to"]
+        }
+      }
+    ],
+    "config": {
+      "enabled": true,
+      "priority": 0
+    },
+    "createdAt": "2024-02-18T00:00:00.000Z",
+    "updatedAt": "2024-02-18T00:00:00.000Z"
+  }
+]
