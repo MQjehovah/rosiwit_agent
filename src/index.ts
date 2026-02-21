@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { MCPManager } from "./mcp/manager.js";
 import { SessionManager } from "./session/index.js";
+import { buildSystemPrompt } from "./systemPrompt.js";
 
 let openai: OpenAI | null = null;
 let mcpManager: MCPManager | null = null;
@@ -26,10 +27,12 @@ function getOpenAIInstance(): OpenAI {
 async function main() {
   try {
     // 初始化 Session Manager (记录对话上下文和监控大小)
+    // 从 SOUL.md 和 RULE.md 加载系统提示词
+    const systemPrompt = buildSystemPrompt("你是一个 macOS 智能助手，帮助用户完成各种任务。");
     sessionManager = new SessionManager({
       maxMessages: 50,
       maxTokens: 4096,
-      systemMessage: "你是一个有用的AI助手，可以回答用户的问题并帮助使用工具。"
+      systemMessage: systemPrompt
     });
 
     // 订阅统计信息变化
